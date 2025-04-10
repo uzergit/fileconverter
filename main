@@ -1,0 +1,37 @@
+# Prompt the user to drag a folder onto the console and press Enter
+$folderPath = Read-Host "Drag the folder onto this window and press Enter"
+$folderPath = $folderPath.Trim('"')
+
+# Check if the provided folder exists
+if (-Not (Test-Path $folderPath)) {
+    Write-Host "The folder path provided does not exist."
+    exit
+}
+
+# Get all .mov files recursively from the folder
+$movFiles = Get-ChildItem -Path $folderPath -Recurse | Where-Object { $_.Extension -ieq ".mov" }
+
+foreach ($file in $movFiles) {
+    $inputFile = $file.FullName
+    # Generate output file name by replacing the .mov extension with .mp4
+    $outputFile = [System.IO.Path]::ChangeExtension($inputFile, ".mp4")
+    
+    # If the output file already exists, skip conversion
+    if (Test-Path $outputFile) {
+        Write-Host "$($file.Name) is already in target video format. Skipping conversion."
+        continue
+    }
+    
+    Write-Host "Converting video file: $($file.Name)..."
+    # Call ffmpeg with parameters similar to your old script's conversion line
+    ffmpeg -i $inputFile -c:v libx264 -pix_fmt yuv420p -crf 18 -preset slow -c:a aac -b:a 192k $outputFile
+
+    # If conversion was successful, delete the original .mov file
+    if ($LASTEXITCODE -eq 0) {
+        Remove-Item $inputFile -Force
+        Write-Host "Converted and deleted: $($file.Name)"
+    }
+    else {
+        Write-Host "Conversion failed for: $($file.Name)"
+    }
+}
